@@ -335,21 +335,54 @@ namespace BusinessProgressSoft.Controllers
             return Ok(card);
         }
         
-        [Route("uploadImage")]
+        //[Route("uploadImage")]
 
+        //[HttpPost]
+        //public Bcard UploadImage()
+        //{
+        //    var file = Request.Form.Files[0];
+        //    var fileName = Guid.NewGuid().ToString() + "_" + file.FileName;
+        //    var fullPath = Path.Combine("C:\\Users\\DELL\\source\\repos\\BusinessProgressSoftAngular\\src\\assets\\Images", fileName);
+        //    using (var stream = new FileStream(fullPath, FileMode.Create))
+        //    {
+        //        file.CopyTo(stream);
+        //    }
+        //    Bcard card = new Bcard();
+        //    card.Photo = fileName;
+        //    return card;
+        //}
+
+        [Route("uploadImage")]
         [HttpPost]
         public Bcard UploadImage()
         {
             var file = Request.Form.Files[0];
             var fileName = Guid.NewGuid().ToString() + "_" + file.FileName;
-            var fullPath = Path.Combine("C:\\Users\\DELL\\source\\repos\\BusinessProgressSoftAngular\\src\\assets\\Images", fileName);
-            using (var stream = new FileStream(fullPath, FileMode.Create))
+            var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "exports");
+
+            var firstPath = Path.Combine("C:\\Users\\DELL\\source\\repos\\BusinessProgressSoftAngular\\src\\assets\\Images", fileName);
+
+            var secondPath = Path.Combine(folderPath, fileName);
+
+            // Save to the first path
+            using (var stream = new FileStream(firstPath, FileMode.Create))
             {
                 file.CopyTo(stream);
             }
+
+            // Save to the second path
+            using (var stream = new FileStream(secondPath, FileMode.Create))
+            {
+                file.CopyTo(stream);
+            }
+
             Bcard card = new Bcard();
+
+            // Try to store photo base64
+            // card.Photo = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(firstPath));
             card.Photo = fileName;
             return card;
         }
+
     }
 }
