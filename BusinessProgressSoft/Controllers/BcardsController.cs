@@ -11,6 +11,7 @@ using CsvHelper;
 using System.Globalization;
 using BusinessProgressSoft.Models.Services;
 using System.Xml.Linq;
+using System.Text;
 
 namespace BusinessProgressSoft.Controllers
 {
@@ -29,11 +30,31 @@ namespace BusinessProgressSoft.Controllers
             _cards = cards;
         }
 
+        //[HttpGet("GetCard")]
+        //public IActionResult GetBcards()
+        //{
+        //    var cards = _cards.GetCards();
+        //    return Ok(cards); 
+        //}
         [HttpGet("GetCard")]
         public IActionResult GetBcards()
         {
             var cards = _cards.GetCards();
-            return Ok(cards); 
+
+            // Iterate through each card and decode the photo if it exists
+            foreach (var card in cards)
+            {
+                if (!string.IsNullOrEmpty(card.Photo))
+                {
+                    // Convert the Base64 string to a data URL format, assuming it's already stored as Base64 in the database
+                    byte[] data = Convert.FromBase64String(card.Photo);
+                    card.Photo = System.Text.Encoding.UTF8.GetString(data);
+                    string imageName = Path.GetFileName(card.Photo);
+                    card.Photo = imageName;
+                }
+            }
+
+            return Ok(cards);
         }
 
         [HttpGet]
@@ -143,7 +164,31 @@ namespace BusinessProgressSoft.Controllers
             {
                 // Parse the CSV file
                 var records = _csvService.ReadCSV<Bcard>(file.OpenReadStream());
+                foreach (var card in records)
+                {
+                    if (!string.IsNullOrEmpty(card.Photo))
+                    {
+                        string imagePath = card.Photo;
+                        var fileName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(imagePath);
+                        var fullPath = Path.Combine("C:\\Users\\DELL\\source\\repos\\BusinessProgressSoftAngular\\src\\assets\\Images", fileName);
 
+
+                        if (System.IO.File.Exists(imagePath))
+                        {
+                            // Save to the first path
+                            using (var stream = new FileStream(fullPath, FileMode.Create))
+                            {
+                                file.CopyTo(stream);
+                            }
+                            byte[] imageBytes = Encoding.UTF8.GetBytes(fullPath);
+                            card.Photo = Convert.ToBase64String(imageBytes); // Convert image to Base64
+                        }
+                        else
+                        {
+                            return BadRequest($"Image file not found: {imagePath}");
+                        }
+                    }
+                }
                 // Add records to the context in batches for performance improvement
                 _context.Bcards.AddRange(records);
                 await _context.SaveChangesAsync();
@@ -162,7 +207,15 @@ namespace BusinessProgressSoft.Controllers
         public async Task<IActionResult> ExportCardToCSV()
         {
             var records = await _context.Bcards.ToListAsync();
-
+            foreach (var card in records)
+            {
+                if (!string.IsNullOrEmpty(card.Photo))
+                {
+                    // Convert the Base64 string to a data URL format, assuming it's already stored as Base64 in the database
+                    byte[] data = Convert.FromBase64String(card.Photo);
+                    card.Photo = Encoding.UTF8.GetString(data);
+                }
+            }
             // Define the file path
             var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "exports");
             var fileName = Guid.NewGuid().ToString() + "-" + "Bcards.csv";
@@ -224,9 +277,18 @@ namespace BusinessProgressSoft.Controllers
 
                 foreach (var card in businessCards)
                 {
+                    string imagePath = card.Photo;
+                    var fileName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(imagePath);
+                    var fullPath = Path.Combine("C:\\Users\\DELL\\source\\repos\\BusinessProgressSoftAngular\\src\\assets\\Images", fileName);
+                    using (var stream = new FileStream(fullPath, FileMode.Create))
+                    {
+                        file.CopyTo(stream);
+                    }
+                    byte[] bytes = Encoding.UTF8.GetBytes(fullPath);
+                    card.Photo = Convert.ToBase64String(bytes);
                     _context.Bcards.Add(card);
                 }
-                
+
                 await _context.SaveChangesAsync();
 
                 return Ok("Business cards added successfully from XML.");
@@ -263,10 +325,10 @@ namespace BusinessProgressSoft.Controllers
                             businessCards.Select(b => new XElement("Bcard",
                                 new XElement("Name", b.Name),
                                 new XElement("Gender", b.Gender),
-                                new XElement("Birth", b.Birth?.ToString("MM/dd/yyyy")), // Format the date as needed
+                                new XElement("Birth", b.Birth?.ToString("MM/dd/yyyy")),
                                 new XElement("Email", b.Email),
                                 new XElement("Phone", b.Phone),
-                                new XElement("Photo", b.Photo),
+                                new XElement("Photo", ConvertFromBase64(b.Photo)),
                                 new XElement("Address", b.Address)
                             ))
                         )
@@ -289,6 +351,13 @@ namespace BusinessProgressSoft.Controllers
             {
                 return BadRequest($"Error exporting business cards: {ex.Message}");
             }
+        }
+
+        private string ConvertFromBase64(string pathBase64)
+        {
+            byte[] bytes = Convert.FromBase64String(pathBase64);
+            string pathName = Encoding.UTF8.GetString(bytes);
+            return pathName;
         }
 
         [HttpPost("InsertCard")]
@@ -379,8 +448,8 @@ namespace BusinessProgressSoft.Controllers
             Bcard card = new Bcard();
 
             // Try to store photo base64
-            // card.Photo = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(firstPath));
-            card.Photo = fileName;
+            card.Photo = Convert.ToBase64String(Encoding.UTF8.GetBytes(secondPath));
+            //card.Photo = fileName;
             return card;
         }
 

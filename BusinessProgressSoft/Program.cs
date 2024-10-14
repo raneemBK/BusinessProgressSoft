@@ -40,6 +40,7 @@ namespace BusinessProgressSoft
 
             app.UseHttpsRedirection();
             app.UseCors("policy");
+            app.UseStaticFiles();
 
             app.UseAuthorization();
 
