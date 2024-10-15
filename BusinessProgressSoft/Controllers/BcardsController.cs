@@ -12,6 +12,7 @@ using System.Globalization;
 using BusinessProgressSoft.Models.Services;
 using System.Xml.Linq;
 using System.Text;
+using Microsoft.AspNetCore.StaticFiles;
 
 namespace BusinessProgressSoft.Controllers
 {
@@ -22,12 +23,14 @@ namespace BusinessProgressSoft.Controllers
         private readonly BusinessProgressSoftContext _context;
         private readonly ICSVService _csvService;
         private readonly ICards _cards;
+        private readonly FileExtensionContentTypeProvider _provider;
 
         public BcardsController(BusinessProgressSoftContext context, ICSVService cSV, ICards cards)
         {
             _context = context;
             _csvService = cSV;
             _cards = cards;
+            _provider = new FileExtensionContentTypeProvider();
         }
 
         //[HttpGet("GetCard")]
@@ -48,13 +51,30 @@ namespace BusinessProgressSoft.Controllers
                 {
                     // Convert the Base64 string to a data URL format, assuming it's already stored as Base64 in the database
                     byte[] data = Convert.FromBase64String(card.Photo);
-                    card.Photo = System.Text.Encoding.UTF8.GetString(data);
+                    card.Photo = Encoding.UTF8.GetString(data);
                     string imageName = Path.GetFileName(card.Photo);
                     card.Photo = imageName;
                 }
             }
 
             return Ok(cards);
+        }
+
+        [HttpGet("getImage/{imagePath}")]
+        public IActionResult GetImage(string imagePath)
+        {
+           // string imageName = Path.GetFileName(imagePath);
+            //var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "exports");
+
+            //var fullPath = Path.Combine(folderPath, imageName);
+            if (!System.IO.File.Exists(imagePath)) return NotFound();
+            if (!_provider.TryGetContentType(imagePath, out var contentType))
+            {
+                contentType = "application/octet-stream";
+            }
+            var imageFileStream = System.IO.File.OpenRead(imagePath);
+
+            return File(imageFileStream,contentType);
         }
 
         [HttpGet]
@@ -180,8 +200,10 @@ namespace BusinessProgressSoft.Controllers
                             {
                                 file.CopyTo(stream);
                             }
-                            byte[] imageBytes = Encoding.UTF8.GetBytes(fullPath);
-                            card.Photo = Convert.ToBase64String(imageBytes); // Convert image to Base64
+                            //byte[] imageBytes = Encoding.UTF8.GetBytes(fullPath);
+                            //card.Photo = Convert.ToBase64String(imageBytes); 
+                            byte[] bytes = Encoding.UTF8.GetBytes(imagePath);
+                            card.Photo = Convert.ToBase64String(bytes);
                         }
                         else
                         {
@@ -284,7 +306,9 @@ namespace BusinessProgressSoft.Controllers
                     {
                         file.CopyTo(stream);
                     }
-                    byte[] bytes = Encoding.UTF8.GetBytes(fullPath);
+                    //byte[] bytes = Encoding.UTF8.GetBytes(fullPath);
+                    //card.Photo = Convert.ToBase64String(bytes);
+                    byte[] bytes = Encoding.UTF8.GetBytes(imagePath);
                     card.Photo = Convert.ToBase64String(bytes);
                     _context.Bcards.Add(card);
                 }
