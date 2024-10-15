@@ -9,8 +9,6 @@ This API allows users to manage business cards, including functionalities for cr
 - [Endpoints](#endpoints)
 - [SQL code](#sqlcode)
 - [Unit testing](#unittesting)
-- [Images](#images)
-- [Video](#video)
 
 ## Features
 - CRUD operations for business cards.
